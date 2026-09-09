@@ -1,0 +1,10 @@
+build/
+install/
+log/
+logs/
+checkpoints/
+models/
+.venv/
+__pycache__/
+*.pyc
+*.save
