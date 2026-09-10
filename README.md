@@ -1,14 +1,14 @@
 # TurtleBot3 RL
 
-A simulated TurtleBot3 learns to navigate to randomly-placed goals while avoiding obstacles, trained via reinforcement learning (PPO, Stable-Baselines3) on top of ROS2 Humble and Gazebo Classic. Runs entirely on a single laptop in WSL2 — no real robot, no cloud compute.
+A simulated TurtleBot3 learns to navigate to randomly-placed goals while avoiding obstacles, trained via reinforcement learning (PPO, Stable-Baselines3) on top of ROS2 Humble and Gazebo Classic. Runs entirely on a single laptop in WSL2 or Linux — no real robot, no cloud compute.
 
-This README assumes **zero prior experience** with ROS2, Gazebo, or reinforcement learning — every concept is explained before it's used.
+This README assumes **zero prior experience** with ROS2, Gazebo, or reinforcement learning. Every concept is explained before it's used.
 
 ---
 
 ## 1. Overview
 
-The task, each episode: starting from a fixed spawn point, reach a randomly sampled goal (shown as a green marker) somewhere within a 0.6–2.0m radius, while navigating around four static obstacles — using only a simulated laser scan and odometry. No map, no path planner. The driving behavior is a neural network trained purely from a reward signal (distance-to-goal, collision, a small per-step cost).
+The task, each episode: starting from a fixed spawn point, reach a randomly sampled goal (shown as a green marker) somewhere within a 0.6–2.0m radius, while navigating around four static obstacles, using only a simulated laser scan and odometry. No map, no path planner. The driving behavior is a neural network trained purely from a reward signal (distance-to-goal, collision, a small per-step cost).
 
 ---
 
@@ -34,7 +34,7 @@ The task, each episode: starting from a fixed spawn point, reach a randomly samp
                                               └──────────────────────┘
 ```
 
-**`gym_env.py`** is the one file that's genuinely specific to this project — it translates ROS2's world (topics, services, messages) into the standard Gymnasium `reset()`/`step()` contract that RL libraries expect:
+**`gym_env.py`** is the one file that's genuinely specific to this project: it translates ROS2's world (topics, services, messages) into the standard Gymnasium `reset()`/`step()` contract that RL libraries expect:
 
 - **Observation** (26 floats): the LIDAR scan downsampled into 24 direction-bins (closest object per bin) + distance-to-goal + heading-error.
 - **Action** (`Box(2,)`): forward speed (0–0.2 m/s) + turn rate (-1.5–1.5 rad/s), published as `/cmd_vel`.
@@ -154,12 +154,6 @@ The repo's current state layers three additions on top of a minimal working poli
 - **Visible goal marker**: `_update_goal_marker()` in `gym_env.py` deletes the previous marker and spawns a fresh, **collision-less** green cylinder at each new goal, via the same `/spawn_entity` service already used to place the robot at launch. No collision shape is deliberate — a laser sensor only detects collision geometry, so a solid marker would make the robot's own goal look like a wall to itself right as it arrives.
 - **Continuous control**: the action space evolved from a fixed menu of 5 discrete moves to a continuous `Box(2,)` (forward speed + turn rate), letting the policy steer more precisely. Stable-Baselines3's PPO handles this automatically — no algorithm-level changes needed, just retraining.
 
-| Configuration | Goal reached | Collisions | Notes |
-|---|---|---|---|
-| Empty world, discrete actions | 10/10 | 0 | First working policy |
-| Obstacles added, discrete actions | 9/10 | 0 | 1 timeout, no collisions despite a noisier training curve |
-| Obstacles + continuous control | 9/10 | 1 | Faster, more direct paths (17-55 steps vs 22-76) |
-
 ---
 
 ## 9. Troubleshooting / FAQ
@@ -200,17 +194,3 @@ A known one-off race condition between the model spawner and the GUI plugin star
 **PPO's small MLP policy runs worse on GPU than CPU.** Stable-Baselines3 warns about this directly: GPU transfer overhead dominates for a network this small, and it wastes VRAM that Gazebo's renderer wants. Training and evaluation are pinned to `device="cpu"`.
 
 ---
-
-## 11. Roadmap
-
-- [x] ROS2 Humble + Gazebo Classic + TurtleBot3 environment running in WSL2
-- [x] Gymnasium↔ROS2 bridge with LIDAR + odometry observations
-- [x] PPO training pipeline (Stable-Baselines3), headless and simulation-time-accelerated
-- [x] Static obstacle world with collision-based episode termination
-- [x] Visible, dynamically-repositioned goal marker
-- [x] Continuous (`Box`) action space control
-- [x] Version-controlled on GitHub
-- [ ] Randomized obstacle layouts per episode
-- [ ] Higher-reliability training (reduce residual collision rate)
-- [ ] Moving/dynamic obstacles
-- [ ] Sim-to-real transfer considerations
